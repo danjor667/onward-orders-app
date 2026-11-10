@@ -1,0 +1,12 @@
+# Tells CodeDeploy which container receives traffic during a blue/green
+# release. The pipeline replaces <TASK_DEFINITION> with the revision it has
+# just registered from taskdef.json.
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: <TASK_DEFINITION>
+        LoadBalancerInfo:
+          ContainerName: orders
+          ContainerPort: 8080

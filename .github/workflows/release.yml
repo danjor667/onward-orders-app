@@ -1,0 +1,88 @@
+# Test every change. On main, also build the image and hand the release to AWS.
+#
+# After this workflow nothing else is manual:
+#   image pushed to ECR -> EventBridge -> CodePipeline -> CodeDeploy blue/green
+#
+# There are no AWS keys in this repository. GitHub proves its identity to AWS
+# with a short-lived OIDC token and receives credentials that expire within
+# the hour. The only setting is the repository VARIABLE AWS_ACCOUNT_ID, which
+# is an identifier, not a credential.
+name: release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # allows the job to request the OIDC token
+  contents: read
+
+# Releases run one at a time, in order, so the image and its release bundle
+# always belong to the same commit.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-central-1
+  ENVIRONMENT: dev
+  NAME: onward-dev-orders   # onward-<environment>-<purpose>
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pytest
+
+  release:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to AWS with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ env.NAME }}-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sign in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the image, tagged with the commit
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.NAME }}
+        run: |
+          docker build --build-arg APP_VERSION="${GITHUB_SHA::7}" -t "$IMAGE:$GITHUB_SHA" .
+          docker push "$IMAGE:$GITHUB_SHA"
+
+      - name: Upload the release bundle (task definition and appspec)
+        run: |
+          mkdir bundle
+          sed -e "s/__ACCOUNT_ID__/$AWS_ACCOUNT_ID/g" \
+              -e "s/__AWS_REGION__/$AWS_REGION/g" \
+              -e "s/__ENVIRONMENT__/$ENVIRONMENT/g" \
+              deploy/taskdef.json > bundle/taskdef.json
+          cp deploy/appspec.yaml bundle/appspec.yaml
+          (cd bundle && zip -q ../release.zip taskdef.json appspec.yaml)
+          aws s3 cp release.zip "s3://$NAME-artifacts-$AWS_ACCOUNT_ID/releases/release.zip"
+
+      # Last, because this is the step that starts the pipeline: moving the
+      # "latest" tag is the event EventBridge listens for.
+      - name: Move the "latest" tag to this image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.NAME }}
+        run: |
+          docker tag "$IMAGE:$GITHUB_SHA" "$IMAGE:latest"
+          docker push "$IMAGE:latest"

@@ -1,0 +1,50 @@
+{
+  "family": "onward-__ENVIRONMENT__-orders",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "executionRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/onward-__ENVIRONMENT__-orders-task-execution",
+  "containerDefinitions": [
+    {
+      "name": "orders",
+      "image": "<IMAGE1_NAME>",
+      "essential": true,
+      "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
+      "environment": [
+        {"name": "OWNER_NAME", "value": "Jordan Steve"},
+        {"name": "LAB_NAME", "value": "Delivering Order System Updates Safely for Onward Logistics"}
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"
+        ],
+        "interval": 15,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 20
+      },
+      "stopTimeout": 30,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/onward-__ENVIRONMENT__-orders",
+          "awslogs-region": "__AWS_REGION__",
+          "awslogs-stream-prefix": "orders"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {"key": "Project", "value": "onward"},
+    {"key": "Owner", "value": "Jordan Steve"},
+    {"key": "Environment", "value": "__ENVIRONMENT__"}
+  ]
+}
