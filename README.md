@@ -100,6 +100,10 @@ gh variable set AWS_ACCOUNT_ID --body "$(aws sts get-caller-identity --query Acc
 
 The Region and environment are set at the top of `.github/workflows/release.yml`.
 
+The release role in AWS trusts only the `main` branch of this repository. GitHub may identify the
+repository by name (`repo:danjor667/onward-orders-app:…`) or by its immutable IDs
+(`repo:danjor667@109290255/onward-orders-app@1453234524:…`); the role accepts both, and nothing else.
+
 ## Good to know
 
 - Re-running the workflow for a commit that was already released fails at the push: an image tag can never be overwritten. Push a new commit instead.
