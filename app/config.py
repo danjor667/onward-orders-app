@@ -18,3 +18,9 @@ AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"
 # passcode is generated on first start and kept in the orders table: it is
 # never in this repository. See the README.
 LOCAL_STAFF_PASSCODE = os.environ.get("STAFF_PASSCODE", "onward-local")
+
+# Rollback demonstration only. When "true", every page and API call fails
+# with a 500 error while /health keeps answering, the kind of broken release
+# a health check alone does not catch. The release pipeline must notice the
+# errors and roll back. Off unless the task definition sets it.
+SIMULATE_FAILURE = os.environ.get("SIMULATE_FAILURE", "false").lower() == "true"

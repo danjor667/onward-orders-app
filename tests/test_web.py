@@ -17,6 +17,17 @@ def test_health_says_who_answered(browser):
     assert body["status"] == "ok" and body["answered_by"] and body["zone"]
 
 
+def test_simulated_failure_breaks_pages_but_not_the_health_check(monkeypatch):
+    from app import config, create_app
+    from app.store import MemoryStore
+
+    monkeypatch.setattr(config, "SIMULATE_FAILURE", True)
+    client = create_app(MemoryStore(staff_passcode="x")).test_client()
+    assert client.get("/").status_code == 500
+    assert client.get("/api/quote").status_code == 500
+    assert client.get("/health").status_code == 200
+
+
 # ---- Customer ---------------------------------------------------------------
 def test_customer_places_an_order_and_lands_on_its_tracking_page(browser, valid_order):
     response = browser.post("/orders", valid_order)

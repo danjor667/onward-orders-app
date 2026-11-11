@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from flask import Flask
+from flask import Flask, request
 
 from . import config, pricing, runtime, security
 from .orders import STATUS_TEXT, OrderService
@@ -47,6 +47,13 @@ def create_app(store=None) -> Flask:
     app.register_blueprint(customer.bp)
     app.register_blueprint(ops.bp)
     app.register_blueprint(api.bp)
+
+    # ---- rollback demonstration (see config.SIMULATE_FAILURE) ---------------
+    if config.SIMULATE_FAILURE:
+        @app.before_request
+        def simulated_failure():
+            if request.path != "/health":
+                return "Simulated failure: this release is deliberately broken.", 500
 
     # ---- available in every template ----------------------------------------
     @app.context_processor

@@ -39,6 +39,10 @@
         {
           "name": "AWS_DEFAULT_REGION",
           "value": "__AWS_REGION__"
+        },
+        {
+          "name": "SIMULATE_FAILURE",
+          "value": "true"
         }
       ],
       "healthCheck": {
