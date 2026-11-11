@@ -1,7 +1,8 @@
 # onward-orders-app
 
-The Onward Logistics order system: a single Python application that serves
-the web page and holds the order logic, packaged as one container image.
+The Onward Logistics order system: customers book and track parcel
+deliveries, staff run them from a dashboard. A single Python application
+serves the pages and holds the order logic, packaged as one container image.
 
 Merging to `main` is the only manual step in a release. The infrastructure
 that runs it lives in a separate repository, `onward-orders-infra`.
@@ -10,15 +11,47 @@ that runs it lives in a separate repository, `onward-orders-infra`.
 
 | Path | What it is |
 |---|---|
-| `app/orders.py` | Order logic: creating orders and moving them through their statuses |
-| `app/routes.py` | The web page, a small JSON API and the `/health` check |
+| `app/pricing.py` | What a delivery costs and how long it takes: route × parcel size × speed |
+| `app/orders.py` | The rules for placing, moving and cancelling an order |
+| `app/store.py` | Where orders are kept: in memory locally, in DynamoDB on AWS |
+| `app/stats.py` | Numbers and search for the operations dashboard |
+| `app/security.py` | Form tokens and the staff passcode |
+| `app/runtime.py` | Which container or server answered, shown on every page |
+| `app/web/` | The pages: `customer.py` (book, track, cancel), `ops.py` (staff dashboard), `api.py` (JSON API and `/health`) |
 | `app/templates/`, `app/static/` | The user interface |
-| `app/config.py` | Name, lab name and version shown on the page |
-| `tests/` | Tests for the logic and the pages |
+| `tests/` | Tests for each of the above. DynamoDB is simulated, so no AWS account is needed |
 | `Dockerfile` | Builds the single image |
 | `deploy/taskdef.json` | How the container runs on ECS: CPU, memory, environment, health check |
 | `deploy/appspec.yaml` | Tells CodeDeploy which container receives traffic |
 | `.github/workflows/release.yml` | Tests every change; on `main`, builds and hands the release to AWS |
+
+## What the application does
+
+**Customers and merchants**
+
+- Book a delivery in three steps: route, parcel, people. The price updates as they choose.
+- Get a tracking code (for example `ONW-7KQ2MX`) and follow the parcel on a timeline, with an estimated delivery time.
+- Cancel an order until a rider has picked it up.
+- See their recent orders on the home page.
+
+**Riders and staff** (the *Operations* link, behind a passcode)
+
+- A dashboard: orders in progress, placed and delivered today, revenue, orders by status.
+- Search and filter orders, move a parcel to its next step, cancel an order.
+
+Two sample orders always exist, `ONW-DEMO01` and `ONW-DEMO02`, so tracking can be shown straight away.
+
+### The staff passcode
+
+- **Locally** it is `onward-local` (or the `STAFF_PASSCODE` environment variable).
+- **On AWS** it is generated the first time the application starts and kept in the orders table, so it is never in this repository. Read it with AWS credentials:
+
+  ```bash
+  aws dynamodb get-item --table-name onward-dev-orders \
+    --key '{"pk":{"S":"CONFIG"}}' --query Item.staff_passcode.S --output text
+  ```
+
+  To change it, delete that item and restart the application.
 
 ## Running it locally
 
@@ -36,7 +69,7 @@ docker build -t onward-orders .
 docker run --rm -p 8080:8080 onward-orders
 ```
 
-Then open http://localhost:8080.
+Then open http://localhost:8080. Locally, orders are kept in memory and are lost when the application stops.
 
 ## How a change reaches customers
 
@@ -47,7 +80,7 @@ Then open http://localhost:8080.
    - uploads `taskdef.json` and `appspec.yaml` to S3 as the release bundle,
    - moves the `latest` tag to the new image.
 3. Moving `latest` is the signal. EventBridge starts CodePipeline, and CodeDeploy performs a blue/green release: the new version starts beside the old one, takes 10% of traffic for five minutes, then all of it.
-4. The footer of the page shows the running version (the commit), the task and the Availability Zone.
+4. The footer of every page shows which task answered, its Availability Zone and the running version (the commit).
 
 To change CPU, memory or environment variables, edit `deploy/taskdef.json` and merge. It is released the same way.
 
@@ -70,4 +103,6 @@ The Region and environment are set at the top of `.github/workflows/release.yml`
 ## Good to know
 
 - Re-running the workflow for a commit that was already released fails at the push: an image tag can never be overwritten. Push a new commit instead.
-- Orders are kept in memory, per container. Each container has its own list and a release starts with the sample orders again. Storage is outside the scope of this lab.
+- On AWS, orders live in a DynamoDB table shared by every container, so they survive releases and scaling. The table name reaches the container through `ORDERS_TABLE` in `deploy/taskdef.json`.
+- The Operations passcode travels over plain HTTP until the load balancer has a certificate. Real staff sign-in (for example Amazon Cognito) is the next step.
+- Anyone who knows a tracking code can view or cancel that order, as with most courier tracking links.

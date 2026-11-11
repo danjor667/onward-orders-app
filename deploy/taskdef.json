@@ -1,6 +1,8 @@
 {
   "family": "onward-__ENVIRONMENT__-orders",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "networkMode": "awsvpc",
   "cpu": "256",
   "memory": "512",
@@ -9,15 +11,35 @@
     "cpuArchitecture": "X86_64"
   },
   "executionRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/onward-__ENVIRONMENT__-orders-task-execution",
+  "taskRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/onward-__ENVIRONMENT__-orders-task",
   "containerDefinitions": [
     {
       "name": "orders",
       "image": "<IMAGE1_NAME>",
       "essential": true,
-      "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
       "environment": [
-        {"name": "OWNER_NAME", "value": "Jordan Steve"},
-        {"name": "LAB_NAME", "value": "Delivering Order System Updates Safely for Onward Logistics"}
+        {
+          "name": "OWNER_NAME",
+          "value": "Jordan Steve"
+        },
+        {
+          "name": "LAB_NAME",
+          "value": "Delivering Order System Updates Safely for Onward Logistics"
+        },
+        {
+          "name": "ORDERS_TABLE",
+          "value": "onward-__ENVIRONMENT__-orders"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "__AWS_REGION__"
+        }
       ],
       "healthCheck": {
         "command": [
@@ -43,8 +65,17 @@
     }
   ],
   "tags": [
-    {"key": "Project", "value": "onward"},
-    {"key": "Owner", "value": "Jordan Steve"},
-    {"key": "Environment", "value": "__ENVIRONMENT__"}
+    {
+      "key": "Project",
+      "value": "onward"
+    },
+    {
+      "key": "Owner",
+      "value": "Jordan Steve"
+    },
+    {
+      "key": "Environment",
+      "value": "__ENVIRONMENT__"
+    }
   ]
 }
