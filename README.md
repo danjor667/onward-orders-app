@@ -90,6 +90,18 @@ To change CPU, memory or environment variables, edit `deploy/taskdef.json` and m
 - **By hand, within the rollback window**: stop the deployment in CodeDeploy and choose to roll back. The old version is still running, so this takes seconds.
 - **Later**: revert the commit and merge. The revert is released like any other change.
 
+### Rehearsed on 11 November 2026
+
+The app has a switch for this, `SIMULATE_FAILURE`. When it is `true`, every page returns a 500 error while `/health` keeps passing: a broken release that a health check alone would let through. It is off unless the task definition sets it.
+
+1. Commit `fa4e73d` set the switch in `deploy/taskdef.json` and was merged. The tests passed (the switch is off in them), so the release went out normally.
+2. CodeDeploy started deployment `d-NKLT6PXMM` at 19:06. The broken version took 10% of traffic at about 19:08.
+3. About 1 request in 10 failed. Steady test traffic (about 3 requests a second) recorded 81 errors over five minutes. The other 90% stayed on the working version.
+4. At 19:12:56 the `onward-dev-orders-server-errors` alarm fired (5 or more 5xx in a minute). CodeDeploy stopped the release (`ALARM_ACTIVE`) and rollback deployment `d-NZCVVMXMM` returned all traffic to the old version at 19:13:04.
+5. The release was then fixed forward by removing the switch and merging again.
+
+Nobody pressed a button, and the failure never reached more than the canary share of customers.
+
 ## One-time setup
 
 The workflow needs one repository variable. It is an identifier, not a credential:

@@ -24,4 +24,4 @@ EXPOSE 8080
 
 # One worker so all requests to this container see the same in-memory
 # orders; threads handle concurrency. Scaling happens by adding containers.
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--access-logfile", "-", "wsgi:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--keep-alive", "75", "--access-logfile", "-", "wsgi:app"]
