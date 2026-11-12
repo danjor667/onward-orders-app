@@ -13,6 +13,10 @@ on:
   pull_request:
   push:
     branches: [main]
+    # A change to documentation alone is not a release.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 
 permissions:
   id-token: write   # allows the job to request the OIDC token

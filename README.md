@@ -98,7 +98,9 @@ The app has a switch for this, `SIMULATE_FAILURE`. When it is `true`, every page
 2. CodeDeploy started deployment `d-NKLT6PXMM` at 19:06. The broken version took 10% of traffic at about 19:08.
 3. About 1 request in 10 failed. Steady test traffic (about 3 requests a second) recorded 81 errors over five minutes. The other 90% stayed on the working version.
 4. At 19:12:56 the `onward-dev-orders-server-errors` alarm fired (5 or more 5xx in a minute). CodeDeploy stopped the release (`ALARM_ACTIVE`) and rollback deployment `d-NZCVVMXMM` returned all traffic to the old version at 19:13:04.
-5. The release was then fixed forward by removing the switch and merging again.
+5. The release was then fixed forward by removing the switch and merging again. That first fix release (`d-OW7BSNXMM`, 19:15) was stopped at once, because the alarm was still firing from the broken version. This is intended: CodeDeploy will not start a release while the error alarm is active. The alarm returned to OK at 19:23. Re-running the pipeline released the fix as deployment `d-9N26JYWMM` (19:23 to 19:40: canary, full switch, then the old version removed after the 10-minute rollback window).
+
+**Lesson:** after a rollback, wait for the `onward-dev-orders-server-errors` alarm to return to OK (about ten minutes) before releasing again, or re-run the pipeline once it has.
 
 Nobody pressed a button, and the failure never reached more than the canary share of customers.
 
